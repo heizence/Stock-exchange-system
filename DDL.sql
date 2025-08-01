@@ -3,6 +3,13 @@
 -- =================================================================
 
 -- -----------------------------------------------------
+-- ENUM 타입 정의
+-- : 특정 컬럼에 허용될 값의 목록을 사전에 정의합니다.
+-- -----------------------------------------------------
+CREATE TYPE order_type_enum AS ENUM ('BUY', 'SELL');
+CREATE TYPE order_status_enum AS ENUM ('PENDING', 'PARTIALLY_FILLED', 'COMPLETED', 'CANCELED');
+
+-- -----------------------------------------------------
 -- Table `users` (사용자)
 -- : 사용자의 인증 및 식별 정보를 저장한다.
 -- -----------------------------------------------------
@@ -44,6 +51,7 @@ CREATE TABLE stocks (
     id BIGSERIAL PRIMARY KEY,
     ticker VARCHAR(10) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
+    previous_closing_price NUMERIC(19, 4),
     current_price NUMERIC(19, 4),
     price_change NUMERIC(19, 4),
     price_change_rate NUMERIC(10, 2),
@@ -52,10 +60,11 @@ CREATE TABLE stocks (
 );
 
 COMMENT ON TABLE stocks IS '주식 종목 마스터 데이터';
-COMMENT ON COLUMN stocks.ticker IS '종목 코드 (e.g., AAPL)';
+COMMENT ON COLUMN stocks.ticker IS '종목 코드 (e.g., AAPL, 005930)';
 COMMENT ON COLUMN stocks.name IS '종목 공식 명칭';
-COMMENT ON COLUMN stocks.current_price IS '현재가';
-COMMENT ON COLUMN stocks.price_change IS '전일 대비 가격 변동';
+COMMENT ON COLUMN stocks.previous_closing_price IS '전일 종가 (모든 전일 대비 데이터의 기준)';
+COMMENT ON COLUMN stocks.current_price IS '현재가 (초 단위 업데이트)';
+COMMENT ON COLUMN stocks.price_change IS '전일 대비 가격 변동 (현재가 - 전일 종가)';
 COMMENT ON COLUMN stocks.price_change_rate IS '전일 대비 등락률 (%)';
 COMMENT ON COLUMN stocks.last_updated_at IS '가격 갱신 시각';
 COMMENT ON COLUMN stocks.total_volume_today IS '오늘의 누적 거래량';
@@ -69,16 +78,20 @@ CREATE TABLE orders (
     id BIGSERIAL,
     user_id BIGINT NOT NULL REFERENCES users(id),
     stock_id BIGINT NOT NULL REFERENCES stocks(id),
-    order_type VARCHAR(4) NOT NULL CHECK (order_type IN ('BUY', 'SELL')),
+    order_type order_type_enum NOT NULL,
     price NUMERIC(19, 4) NOT NULL CHECK (price > 0),
-    quantity BIGINT NOT NULL CHECK (quantity > 0),
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    quantity BIGINT NOT NULL CHECK (quantity > 0),  -- 최초 주문 수량
+    executed_quantity BIGINT NOT NULL DEFAULT 0 CHECK (executed_quantity >= 0), -- 부분 체결된 누적 수량
+    status order_status_enum NOT NULL DEFAULT 'PENDING',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id, created_at)  -- 파티션 키를 기본 키에 포함
+    PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
 COMMENT ON TABLE orders IS '사용자의 모든 주문 요청 기록';
-COMMENT ON COLUMN orders.status IS '주문 상태 (PENDING, COMPLETED, CANCELED 등)';
+COMMENT ON COLUMN orders.order_type IS '주문 유형 (BUY, SELL)';
+COMMENT ON COLUMN orders.status IS '주문 상태 (PENDING, PARTIALLY_FILLED, COMPLETED, CANCELED)';
+COMMENT ON COLUMN orders.quantity IS '최초 주문 수량';
+COMMENT ON COLUMN orders.executed_quantity IS '부분 체결된 누적 수량';
 
 
 -- -----------------------------------------------------
