@@ -1,0 +1,154 @@
+openapi: 3.0.0
+info:
+  title: 주식 거래 시스템 API
+  description: |
+    주식 거래 시스템의 API 명세서입니다.
+    - 이 API는 매수, 매도 주문을 처리합니다.
+    - 인증은 JWT 기반 Bearer Token을 사용합니다.
+  version: 1.1.0
+
+servers:
+  - url: https://api.example.com/api # 추후 변경
+    description: Production server
+  - url: https://staging.example.com/api # 추후 변경
+    description: Staging server
+  - url: https://dev.example.com/api # 추후 변경
+    description: Dev server
+
+tags:
+  - name: 주문
+    description: 주식 주문 관련 API
+  - name: 계좌
+    description: 계좌 및 자금 관련 API
+  - name: 사용자
+    description: 사용자 계정 관리 API
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateOrderRequestDto:
+      type: object
+      required:
+        - ticker
+        - orderType
+        - price
+        - quantity
+      properties:
+        ticker:
+          type: string
+          description: 주문할 주식의 종목 코드
+          example: "AAPL"
+        orderType:
+          type: string
+          description: 주문 유형
+          enum:
+            - BUY   # 매수
+            - SELL  # 매도
+          example: "BUY"
+        price:
+          type: number
+          description: 1주당 주문 가격
+          example: 150.00
+        quantity:
+          type: integer
+          description: 주문 수량
+          example: 10
+    OrderDto:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          example: 12345
+        ticker:
+          type: string
+          example: "AAPL"
+        orderType:
+          type: string
+          enum: [BUY, SELL]
+          description: 매수(BUY) 또는 매도(SELL)
+        price:
+          type: number
+          example: 150.00
+        quantity:
+          type: integer
+          example: 10
+        executedQuantity:
+          type: integer
+          description: 체결된 수량
+          example: 0
+        status:
+          type: string
+          enum: [PENDING, PARTIALLY_FILLED, COMPLETED, CANCELED]
+          description: |
+            주문 상태:
+              - PENDING: 대기 중
+              - PARTIALLY_FILLED: 일부 체결
+              - COMPLETED: 완료
+              - CANCELED: 취소됨
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-07-31T07:00:00Z"
+    ErrorResponseDto:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Insufficient balance"
+        errorCode:
+          type: string
+          description: 비즈니스 로직 에러 코드
+          example: "BALANCE_NOT_ENOUGH"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-07-31T07:00:00Z"
+
+paths:
+  /orders:
+    post:
+      summary: 신규 주문 등록
+      description: 사용자가 특정 주식에 대한 새로운 매수 또는 매도 주문을 등록합니다.
+      tags:
+        - 주문
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequestDto'
+      responses:
+        '201':
+          description: 주문이 성공적으로 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDto'
+        '400':
+          description: 잘못된 요청 (예: 잔고 부족)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: 인증 실패 (JWT 누락 또는 만료)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: 리소스 없음 (예: 존재하지 않는 종목)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+
