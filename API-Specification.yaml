@@ -30,6 +30,42 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    StockDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 주식 데이터 고유 ID
+          example: 1
+        ticker:
+          type: string
+          description: 종목 코드
+          example: "AAPL"
+        name:
+          type: string
+          description: 종목명
+          example: "Apple Inc."
+        currentPrice:
+          type: number
+          description: 현재가
+          example: 150.75
+        priceChange:
+          type: number
+          description: 전일 대비 가격 차이
+          example: -1.25
+        priceChangeRate:
+          type: number
+          description: 전일 대비 등락률 (%)
+          example: -0.82
+        lastUpdatedAt:
+          type: string
+          format: date-time
+          description: 가격 갱신 시각
+          example: "2025-07-31T06:30:00Z"
+        totalVolumeToday:
+          type: integer
+          description: 오늘의 누적 거래량
+          example: 50321400
     CreateOrderRequestDto:
       type: object
       required:
@@ -93,26 +129,56 @@ components:
           type: string
           format: date-time
           example: "2025-07-31T07:00:00Z"
-    ErrorResponseDto:
-      type: object
-      properties:
-        statusCode:
-          type: integer
-          example: 400
-        message:
+        errorMessage:
           type: string
           example: "Insufficient balance"
-        errorCode:
-          type: string
-          description: 비즈니스 로직 에러 코드
-          example: "BALANCE_NOT_ENOUGH"
-        timestamp:
-          type: string
-          format: date-time
-          example: "2025-07-31T07:00:00Z"
 
 paths:
-  /orders:
+/stocks:
+    get:
+      summary: 전체 주식 종목 목록 조회
+      description: 거래 가능한 모든 주식 종목의 목록과 시세를 조회합니다.
+      tags:
+        - "시장 정보 API"
+      responses:
+        '200':
+          description: 성공. 주식 목록 배열을 반환합니다. 종목이 없는 경우 빈 배열을 반환합니다.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockDto'
+
+/stocks/{ticker}:
+    get:
+      summary: 특정 주식 상세 정보 조회
+      description: 특정 종목 코드(ticker)에 해당하는 주식의 상세 정보를 조회합니다.
+      tags:
+        - "시장 정보 API"
+      parameters:
+        - name: ticker
+          in: path
+          description: 조회할 주식의 종목 코드
+          required: true
+          schema:
+            type: string
+          example: "AAPL"
+      responses:
+        '200':
+          description: 성공. 단일 주식 객체를 반환합니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockDto'
+        '404':
+          description: 리소스 없음 (e.g., 존재하지 않는 종목)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+
+/orders:
     post:
       summary: 신규 주문 등록
       description: 사용자가 특정 주식에 대한 새로운 매수 또는 매도 주문을 등록합니다.
