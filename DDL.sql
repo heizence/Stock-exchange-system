@@ -119,6 +119,37 @@ COMMENT ON TABLE trades IS '체결된 모든 거래 기록 원장';
 CREATE TABLE trades_y2025m07 PARTITION OF trades FOR VALUES FROM ('2025-07-01') TO ('2025-08-01');
 CREATE TABLE orders_y2025m07 PARTITION OF orders FOR VALUES FROM ('2025-07-01') TO ('2025-08-01');
 
+-- =================================================================
+-- 예시 데이터 삽입 (Sample Data)
+-- =================================================================
+
+-- 사용자 2명 생성 (비밀번호는 'password123'을 해시했다고 가정)
+INSERT INTO users (username, password_hash) VALUES
+('buyer01', '$2b$12$...'),
+('seller01', '$2b$12$...');
+
+-- 각 사용자의 계좌 생성
+INSERT INTO accounts (user_id, balance) VALUES
+(1, 10000000.0000), -- 매수자 계좌, 천만원
+(2, 5000000.0000);  -- 매도자 계좌, 오백만원
+
+-- 주식 종목 2개 생성
+INSERT INTO stocks (ticker, name, previous_closing_price, current_price, price_change, price_change_rate, last_updated_at, total_volume_today) VALUES
+('AAPL', 'Apple Inc.', 150.00, 152.50, 2.50, 1.67, NOW(), 12345678),
+('SSNLF', 'Samsung Electronics Co., Ltd.', 70000.00, 69500.00, -500.00, -0.71, NOW(), 87654321);
+
+-- 주문 2개 생성 (2025년 8월 데이터로 생성하여 파티션에 삽입)
+-- 매수자(1)가 'AAPL' 주식 10주를 152.50에 매수 주문
+INSERT INTO orders (user_id, stock_id, order_type, price, quantity, status, created_at) VALUES
+(1, 1, 'BUY', 152.50, 10, 'COMPLETED', '2025-08-14 10:00:00+09');
+-- 매도자(2)가 'AAPL' 주식 10주를 152.50에 매도 주문
+INSERT INTO orders (user_id, stock_id, order_type, price, quantity, status, created_at) VALUES
+(2, 1, 'SELL', 152.50, 10, 'COMPLETED', '2025-08-14 10:00:01+09');
+
+-- 체결 내역 1개 생성 (위 두 주문이 체결됨)
+INSERT INTO trades (stock_id, price, quantity, buy_order_id, sell_order_id, created_at) VALUES
+(1, 152.50, 10, 1, 2, '2025-08-14 10:00:02+09');
+
 
 -- =================================================================
 -- 인덱스(Index) 생성
@@ -139,3 +170,4 @@ CREATE INDEX idx_orders_matching ON orders(stock_id, status, price, created_at);
 
 -- 특정 종목의 과거 거래 내역 조회를 위한 인덱스
 CREATE INDEX idx_trades_stock_id_created_at ON trades(stock_id, created_at DESC);
+
