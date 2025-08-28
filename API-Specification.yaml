@@ -23,13 +23,34 @@ tags:
   - name: 사용자
     description: 사용자 계정 관리 API
 
+# =================================================================
+# 재사용 가능한 공통 컴포넌트 정의
+# =================================================================
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  # -----------------------------------------------------
+  # DTO(Data Transfer Object) 스키마
+  # -----------------------------------------------------
   schemas:
+    StockId:
+      type: integer
+      description: 주식의 시스템 내부 고유 ID
+      example: 1
+    OrderId:
+      type: integer
+      description: 주문의 고유 ID
+      example: 12345
+    OrderType:
+      type: string
+      description: 주문 유형
+      enum:
+        - BUY   # 매수
+        - SELL  # 매도
+      example: "BUY"
     StockDto:
       type: object
       properties:
@@ -66,7 +87,7 @@ components:
           type: integer
           description: 오늘의 누적 거래량
           example: 50321400
-    CreateOrderRequestDto:
+    CreateOrderRequestV1:
       type: object
       required:
         - ticker
@@ -78,22 +99,21 @@ components:
           type: string
           description: 주문할 주식의 종목 코드
           example: "AAPL"
-        orderType:
-          type: string
-          description: 주문 유형
-          enum:
-            - BUY   # 매수
-            - SELL  # 매도
-          example: "BUY"
+          minLength: 4
+          maxLength: 4
+        orderType: 
+          $ref: '#/components/schemas/OrderType'
         price:
           type: number
           description: 1주당 주문 가격
           example: 150.00
+          minimum: 1
         quantity:
           type: integer
           description: 주문 수량
           example: 10
-    OrderDto:
+          minimum: 1
+    OrderResponseV1:
       type: object
       properties:
         orderId:
@@ -103,9 +123,7 @@ components:
           type: string
           example: "AAPL"
         orderType:
-          type: string
-          enum: [BUY, SELL]
-          description: 매수(BUY) 또는 매도(SELL)
+          $ref: '#/components/schemas/OrderType'
         price:
           type: number
           example: 150.00
@@ -132,7 +150,23 @@ components:
         errorMessage:
           type: string
           example: "Insufficient balance"
+    ErrorResponseDto:
+      type: object
+      description: API 요청 실패 시 공통 에러 응답
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Insufficient balance"
+        error:
+          type: string
+          example: "Bad Request"
 
+# =================================================================
+# API 경로(Endpoint) 상세 정의
+# =================================================================
 paths:
 /stocks:
     get:
@@ -178,7 +212,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponseDto'
 
-/orders:
+/v1/orders:
     post:
       summary: 신규 주문 등록
       description: 사용자가 특정 주식에 대한 새로운 매수 또는 매도 주문을 등록합니다.
@@ -191,14 +225,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateOrderRequestDto'
+              $ref: '#/components/schemas/CreateOrderRequestV1'
       responses:
         '201':
           description: 주문이 성공적으로 생성됨
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderDto'
+                $ref: '#/components/schemas/OrderResponseV1'
         '400':
           description: 잘못된 요청 (예: 잔고 부족)
           content:

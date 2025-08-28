@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  # NestJS 앱 서비스
+  nestjs_app:
+    # 현재 폴더(.)에 있는 Dockerfile을 사용하여 이미지를 빌드합니다.
+    build: .
+    container_name: stock_app
+    restart: always
+    ports:
+      # 내 컴퓨터의 3000번 포트와 컨테이너의 3000번 포트를 연결합니다.
+      - '3000:3000'
+    # postgres_db 서비스가 먼저 실행된 후에 nestjs_app 서비스를 시작하도록 의존성을 설정합니다.
+    depends_on:
+      - postgres_db
+
+  # PostgreSQL DB 서비스
+  postgres_db:
+    image: postgres:15
+    # 컨테이너 이름
+    container_name: stock_db
+    # 컨테이너 재시작 정책
+    restart: always
+    # 포트 연결: 내 컴퓨터의 5432번 포트와 컨테이너의 5432번 포트를 연결
+    # 이를 통해 NestJS가 Docker 안의 DB에 접속할 수 있다.
+    ports:
+      - '${DB_PORT}:${DB_PORT}'
+    # 데이터베이스 초기 설정을 위한 환경변수. .env 파일과 반드시 일치해야 한다.
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    # 데이터 영구 저장을 위한 설정
+    # 이 설정이 없으면 컨테이너를 삭제할 때 데이터가 모두 사라진다.
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
